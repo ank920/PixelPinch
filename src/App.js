@@ -1,17 +1,13 @@
 import React from 'react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { Container, Box } from '@mui/material';
-import PDFCompressor from './components/PDFCompressor';
+import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import FileCompressor from './components/PDFCompressor';
+import Footer from './components/Footer';
 
-const theme = createTheme({
+const darkTheme = createTheme({
   palette: {
     mode: 'dark',
     primary: {
-      main: '#2196f3',
-    },
-    secondary: {
-      main: '#f50057',
+      main: '#90caf9',
     },
     background: {
       default: '#0a1929',
@@ -19,22 +15,13 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: '"Segoe UI", "Roboto", "Arial", sans-serif',
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
   },
   components: {
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 8,
           textTransform: 'none',
-          fontWeight: 600,
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          borderRadius: 16,
         },
       },
     },
@@ -43,21 +30,22 @@ const theme = createTheme({
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
+    <ThemeProvider theme={darkTheme}>
       <CssBaseline />
-      <Container maxWidth="lg">
-        <Box
-          sx={{
-            minHeight: '100vh',
-            py: 4,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-          }}
-        >
-          <PDFCompressor />
-        </Box>
-      </Container>
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          bgcolor: 'background.default',
+          color: 'text.primary',
+          pt: 4,
+          pb: 2,
+        }}
+      >
+        <FileCompressor />
+        <Footer />
+      </Box>
     </ThemeProvider>
   );
 }
