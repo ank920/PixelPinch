@@ -145,29 +145,64 @@ npm start
 
 ### PDF Compression
 ```mermaid
-graph LR
-    A[Upload PDF] --> B[Select Quality]
-    B --> C[Compress]
-    C --> D[Download]
-    style A fill:#93c5fd
-    style B fill:#93c5fd
-    style C fill:#93c5fd
-    style D fill:#93c5fd
+flowchart LR
+    A([Upload PDF]):::blue --> B([Select Quality]):::blue
+    B --> C([Compress]):::blue
+    C --> D([Download]):::blue
+    
+    classDef blue fill:#1976D2,stroke:#90CAF9,stroke-width:2px,color:white,font-weight:bold
+    classDef pink fill:#e91e63,stroke:#f48fb1,stroke-width:2px,color:white,font-weight:bold
 ```
 
 ### Image Compression
 ```mermaid
-graph LR
-    A[Select Images] --> B[Adjust Settings]
-    B --> C[Process]
-    C --> D[Save]
-    style A fill:#fca5a5
-    style B fill:#fca5a5
-    style C fill:#fca5a5
-    style D fill:#fca5a5
+flowchart LR
+    A([Select Images]):::pink --> B([Adjust Settings]):::pink
+    B --> C([Process]):::pink
+    C --> D([Save]):::pink
+    
+    classDef blue fill:#1976D2,stroke:#90CAF9,stroke-width:2px,color:white,font-weight:bold
+    classDef pink fill:#e91e63,stroke:#f48fb1,stroke-width:2px,color:white,font-weight:bold
 ```
 
 </div>
+
+### Step-by-Step Guide
+
+#### PDF Compression:
+1. **Upload PDF** 📄
+   - Drag and drop your PDF file
+   - Or click to select from your computer
+   
+2. **Select Quality** ⚙️
+   - High (Prepress) - Best quality
+   - Medium (eBook) - Balanced
+   - Low (Screen) - Maximum compression
+   
+3. **Compress** 🔄
+   - Click "Compress" button
+   - Wait for processing
+   
+4. **Download** ⬇️
+   - Get your compressed file
+   - Compare size reduction
+
+#### Image Compression:
+1. **Select Images** 🖼️
+   - Support for JPEG, PNG, WebP
+   - Multiple files supported
+   
+2. **Adjust Settings** ⚙️
+   - Quality slider (0-100)
+   - Format conversion options
+   
+3. **Process** 🔄
+   - Real-time compression
+   - Progress tracking
+   
+4. **Save** 💾
+   - Download compressed images
+   - View compression stats
 
 ## 📦 Deployment
 
