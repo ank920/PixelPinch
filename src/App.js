@@ -1,6 +1,6 @@
 import React from 'react';
-import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
-import FileCompressor from './components/PDFCompressor';
+import { ThemeProvider, createTheme, CssBaseline, Container, Box } from '@mui/material';
+import PDFCompressor from './components/PDFCompressor';
 import Footer from './components/Footer';
 
 const darkTheme = createTheme({
@@ -8,6 +8,9 @@ const darkTheme = createTheme({
     mode: 'dark',
     primary: {
       main: '#90caf9',
+    },
+    secondary: {
+      main: '#f48fb1',
     },
     background: {
       default: '#0a1929',
@@ -21,7 +24,16 @@ const darkTheme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
+          borderRadius: 8,
           textTransform: 'none',
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundImage: 'none',
         },
       },
     },
@@ -38,12 +50,20 @@ function App() {
           display: 'flex',
           flexDirection: 'column',
           bgcolor: 'background.default',
-          color: 'text.primary',
-          pt: 4,
-          pb: 2,
         }}
       >
-        <FileCompressor />
+        <Container 
+          maxWidth="lg" 
+          sx={{ 
+            flex: 1,
+            py: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4
+          }}
+        >
+          <PDFCompressor />
+        </Container>
         <Footer />
       </Box>
     </ThemeProvider>

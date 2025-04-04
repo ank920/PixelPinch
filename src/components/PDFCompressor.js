@@ -12,7 +12,8 @@ import {
   Tooltip,
   Slider,
   Stack,
-  CircularProgress
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { 
   CloudUpload as CloudUploadIcon,
@@ -95,7 +96,7 @@ const SUPPORTED_FORMATS = {
 // API URL configuration
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
-function FileCompressor() {
+function PDFCompressor() {
   const [file, setFile] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState(null);
@@ -104,20 +105,21 @@ function FileCompressor() {
   const [estimatedSize, setEstimatedSize] = useState(null);
 
   const onDrop = useCallback((acceptedFiles) => {
-    const file = acceptedFiles[0];
-    if (!file) {
-      setError('Please upload a supported file type');
-      return;
+    if (acceptedFiles.length > 0) {
+      setFile(acceptedFiles[0]);
+      setError(null);
+      setResult(null);
     }
-    setFile(file);
-    setError(null);
-    setResult(null);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: SUPPORTED_FORMATS,
-    multiple: false
+    accept: {
+      'image/*': ['.jpg', '.jpeg', '.png', '.webp'],
+      'application/pdf': ['.pdf']
+    },
+    maxSize: 50 * 1024 * 1024, // 50MB
+    multiple: false,
   });
 
   // Calculate estimated size based on quality slider
@@ -175,82 +177,41 @@ function FileCompressor() {
   }, [file, quality]);
 
   const handleCompress = async () => {
+    if (!file) return;
+
     setProcessing(true);
     setError(null);
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('quality', quality);
 
     try {
-      // First check if server is available with timeout
-      const serverCheck = await Promise.race([
-        fetch(`${API_URL}/api/test`),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Server connection timeout')), 5000)
-        )
-      ]).catch(error => {
-        console.error('Server check failed:', error);
-        throw new Error('Cannot connect to server. Please check your internet connection and try again.');
-      });
-
-      if (!serverCheck) {
-        throw new Error('Server is not responding. Please try again later.');
-      }
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('quality', quality.toString());
-
-      console.log('Sending file:', {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        quality
-      });
-
       const response = await fetch(`${API_URL}/api/compress`, {
         method: 'POST',
         body: formData,
-        credentials: 'omit',
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json'
-        }
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Server error' }));
-        throw new Error(errorData.error || `Server error: ${response.status}`);
+        throw new Error(`Server responded with ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('Compression response:', data);
-      setResult(data);
+      const result = await response.json();
+      setResult(result);
     } catch (err) {
       console.error('Compression error:', err);
-      setError(err.message);
+      setError('Failed to compress file. Please make sure the server is running on port 3001.');
     } finally {
       setProcessing(false);
     }
   };
 
   const handleDownload = async () => {
-    if (!result?.downloadPath) return;
-    
-    setError(null);
-    
-    try {
-      console.log('Starting download from:', result.downloadPath);
-      
-      const response = await fetch(`${API_URL}${result.downloadPath}`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/octet-stream',
-        },
-      });
+    if (!result?.outputPath) return;
 
-      if (!response.ok) {
-        console.error('Download failed with status:', response.status);
-        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
-        throw new Error(errorData.error || 'Failed to download the file');
-      }
+    try {
+      const response = await fetch(`${API_URL}/api/download?file=${result.outputPath}`);
+      if (!response.ok) throw new Error('Download failed');
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -259,16 +220,11 @@ function FileCompressor() {
       a.download = `compressed-${file.name}`;
       document.body.appendChild(a);
       a.click();
-      
-      // Cleanup
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }, 100);
-      
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (err) {
       console.error('Download error:', err);
-      setError(err.message || 'Failed to download the compressed file');
+      setError('Failed to download the compressed file.');
     }
   };
 
@@ -368,267 +324,126 @@ function FileCompressor() {
   );
 
   return (
-    <AnimatePresence mode="wait">
-      <MotionBox
-        key="container"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-        sx={{ width: '100%', maxWidth: 800, mx: 'auto' }}
+    <Stack spacing={3}>
+      <Paper
+        elevation={3}
+        sx={{
+          p: 4,
+          textAlign: 'center',
+          background: 'linear-gradient(145deg, #132f4c 0%, #0a1929 100%)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: 2,
+        }}
       >
-        <MotionPaper
-          elevation={24}
+        <Typography variant="h4" gutterBottom sx={{ color: 'primary.main', fontWeight: 600 }}>
+          PixelPinch
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary" paragraph>
+          Compress your files without losing quality
+        </Typography>
+
+        <Box
+          {...getRootProps()}
           sx={{
-            p: 4,
-            textAlign: 'center',
-            background: 'linear-gradient(145deg, #132f4c 0%, #0a1929 100%)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            overflow: 'hidden'
+            mt: 3,
+            p: 3,
+            border: '2px dashed',
+            borderColor: isDragActive ? 'primary.main' : 'rgba(255, 255, 255, 0.1)',
+            borderRadius: 2,
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            '&:hover': {
+              borderColor: 'primary.main',
+              bgcolor: 'rgba(144, 202, 249, 0.08)',
+            },
           }}
         >
-          <MotionTypography
-            variant="h4"
-            component="h1"
-            gutterBottom
-            sx={{ fontWeight: 700 }}
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-          >
-            File Compressor Pro
-          </MotionTypography>
+          <input {...getInputProps()} />
+          <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
+          <Typography variant="body1" gutterBottom>
+            {isDragActive
+              ? 'Drop the file here...'
+              : 'Drag & drop a file here, or click to select'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Supported formats: PDF, JPEG, PNG, WebP (Max 50MB)
+          </Typography>
+        </Box>
 
-          <MotionTypography
-            variant="subtitle1"
-            color="text.secondary"
-            gutterBottom
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
-            Compress PDF, Images, and Code files without losing quality
-          </MotionTypography>
+        {file && (
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Selected file: {file.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" display="block">
+              Size: {(file.size / (1024 * 1024)).toFixed(2)} MB
+            </Typography>
 
-          <AnimatePresence mode="wait">
-            {!file && (
-              <MotionBox
-                key="dropzone"
-                {...getRootProps()}
-                component={motion.div}
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                whileHover={{ scale: 1.02, transition: { duration: 0.2 } }}
-                whileTap={{ scale: 0.98 }}
-                sx={{
-                  mt: 4,
-                  p: 6,
-                  border: '2px dashed',
-                  borderColor: isDragActive ? 'primary.main' : 'grey.500',
-                  borderRadius: 2,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  '&:hover': {
-                    borderColor: 'primary.main',
-                    bgcolor: 'rgba(33, 150, 243, 0.08)',
-                  },
-                }}
-              >
-                <input {...getInputProps()} />
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.3, type: "spring", stiffness: 200 }}
-                >
-                  <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
-                </motion.div>
-                <Typography variant="h6">
-                  {isDragActive ? 'Drop your file here' : 'Drag & drop your file here'}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Supported formats: PDF, JPG, PNG, JS, CSS, HTML, TXT, JSON
-                </Typography>
-              </MotionBox>
-            )}
+            <Box sx={{ px: 4, mt: 3 }}>
+              <Typography gutterBottom>Quality: {quality}%</Typography>
+              <Slider
+                value={quality}
+                onChange={(_, newValue) => setQuality(newValue)}
+                aria-labelledby="quality-slider"
+                valueLabelDisplay="auto"
+                min={1}
+                max={100}
+                sx={{ maxWidth: 300, mx: 'auto' }}
+              />
+            </Box>
 
-            {file && !result && (
-              <MotionCard
-                key="compression-card"
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                sx={{ mt: 4 }}
-              >
-                <CardContent>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                    {getFileIcon(file.type)}
-                    <Box sx={{ flexGrow: 1, textAlign: 'left', ml: 2 }}>
-                      <Typography variant="subtitle1" noWrap>{file.name}</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {formatFileSize(file.size)}
-                      </Typography>
-                    </Box>
-                    <Tooltip title="Remove file">
-                      <IconButton onClick={handleReset} size="small">
-                        <DeleteIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </Box>
-
-                  <Stack spacing={2} sx={{ mb: 3 }}>
-                    <Typography id="quality-slider" gutterBottom>
-                      {getQualityLabel()}
-                    </Typography>
-                    <Slider
-                      value={quality}
-                      onChange={(_, newValue) => setQuality(newValue)}
-                      aria-labelledby="quality-slider"
-                      valueLabelDisplay="auto"
-                      step={5}
-                      marks={[
-                        { value: 0, label: 'Min' },
-                        { value: 40, label: '40%' },
-                        { value: 70, label: '70%' },
-                        { value: 100, label: 'Max' }
-                      ]}
-                      min={0}
-                      max={100}
-                    />
-                    {estimatedSize && (
-                      <Typography variant="body2" color="text.secondary">
-                        Estimated size after compression: {formatFileSize(estimatedSize)}
-                      </Typography>
-                    )}
-                    {getCompressionTips()}
-                  </Stack>
-
-                  {processing ? (
-                    <MotionBox
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      sx={{ textAlign: 'center', py: 3 }}
-                    >
-                      <CircularProgressWithLabel value={quality} />
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                        Compressing your file...
-                      </Typography>
-                    </MotionBox>
-                  ) : (
-                    <Button
-                      variant="contained"
-                      startIcon={<CompressIcon />}
-                      onClick={handleCompress}
-                      disabled={processing}
-                      fullWidth
-                      component={motion.button}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      Compress File
-                    </Button>
-                  )}
-                </CardContent>
-              </MotionCard>
-            )}
-
-            {result && (
-              <MotionCard
-                key="result-card"
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                sx={{ mt: 4 }}
-              >
-                <CardContent>
-                  <MotionBox
-                    variants={successVariants}
-                    initial="hidden"
-                    animate="visible"
-                  >
-                    <CheckCircleIcon 
-                      sx={{ 
-                        fontSize: 48, 
-                        color: 'success.main',
-                        mb: 2
-                      }} 
-                    />
-                  </MotionBox>
-                  
-                  <Typography variant="h6" gutterBottom color="primary">
-                    Compression Complete!
-                  </Typography>
-                  
-                  <MotionBox
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    sx={{ my: 2 }}
-                  >
-                    <Typography variant="body2" color="text.secondary">
-                      Original size: {formatFileSize(result.originalSize)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Compressed size: {formatFileSize(result.compressedSize)}
-                    </Typography>
-                    <Typography variant="body1" color="primary" sx={{ mt: 1, fontWeight: 600 }}>
-                      Saved {result.compressionRatio}% of original size
-                    </Typography>
-                  </MotionBox>
-
-                  <Stack 
-                    direction="row" 
-                    spacing={2} 
-                    justifyContent="center"
-                    component={motion.div}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                  >
-                    <Button
-                      variant="contained"
-                      startIcon={<DownloadIcon />}
-                      onClick={handleDownload}
-                      component={motion.button}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Download Compressed File
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      startIcon={<CloudUploadIcon />}
-                      onClick={handleReset}
-                      component={motion.button}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      Compress Another File
-                    </Button>
-                  </Stack>
-                </CardContent>
-              </MotionCard>
-            )}
-          </AnimatePresence>
-
-          {error && (
-            <MotionTypography
-              color="error"
-              sx={{ mt: 2 }}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
+            <Button
+              variant="contained"
+              startIcon={<CompressIcon />}
+              onClick={handleCompress}
+              disabled={processing}
+              sx={{ mt: 3 }}
             >
-              {error}
-            </MotionTypography>
-          )}
-        </MotionPaper>
-      </MotionBox>
-    </AnimatePresence>
+              {processing ? 'Compressing...' : 'Compress'}
+            </Button>
+          </Box>
+        )}
+
+        {processing && (
+          <Box sx={{ width: '100%', mt: 2 }}>
+            <LinearProgress />
+          </Box>
+        )}
+
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {result && (
+          <Paper sx={{ mt: 3, p: 3, bgcolor: 'background.paper' }}>
+            <Typography variant="h6" gutterBottom>
+              Compression Results
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Original size: {(result.originalSize / (1024 * 1024)).toFixed(2)} MB
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Compressed size: {(result.compressedSize / (1024 * 1024)).toFixed(2)} MB
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Reduction: {result.ratio}%
+            </Typography>
+
+            <IconButton
+              color="primary"
+              onClick={handleDownload}
+              sx={{ mt: 1 }}
+              title="Download compressed file"
+            >
+              <DownloadIcon />
+            </IconButton>
+          </Paper>
+        )}
+      </Paper>
+    </Stack>
   );
 }
 
-export default FileCompressor; 
+export default PDFCompressor; 
